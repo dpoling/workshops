@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>dh-workshop-store-app</title>
+
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define("CustomApp",{extend:"Rally.app.App",componentCls:"app",config:{defaultSettings:{myQuery:'(State.Name != "DoneWithFeature")'}},launch:function(){var model="PortfolioItem/Feature";this.add({xtype:"container",tpl:'<div class="big-text">{totalRecords}</div> Features found',itemId:"totalRecords",margin:25}),this.add({xtype:"rallygrid",storeConfig:{model:model,fetch:["FormattedID","Name","Release","ReleaseDate","Owner","UserName","UserStories:summary[ScheduleState]"],filters:this.getFilters(),pageSize:2e3,listeners:{load:function(thisStore){this.down("#totalRecords").update({totalRecords:thisStore.totalCount})},scope:this}},columnCfgs:["FormattedID","Name",{dataIndex:"Release",text:"Release Date",renderer:function(value){if(value&&value.ReleaseDate){var date=Rally.util.DateTime.fromIsoString(value.ReleaseDate);return Ext.String.format("<b>{0}</b> ({1})",value.Name,Rally.util.DateTime.format(date,"Y-m-d"))}return"-- No Release Date --"}},{dataIndex:"UserStories",text:"Schedule State Breakdown",renderer:function(v,m,r){var summary=r.get("Summary");return console.log("Summary",summary),summary.UserStories&&summary.UserStories.ScheduleState?Ext.String.format("Accepted: {0}<br/>Completed: {1}<br/>In-Progress: {2}<br/>Defined: {3}",summary.UserStories.ScheduleState.Accepted||0,summary.UserStories.ScheduleState.Completed||0,summary.UserStories.ScheduleState["In-Progress"]||0,summary.UserStories.ScheduleState.Defined||0):v}},"PercentDoneByStoryCount"],pagingToolbarCfg:{pageSizes:[100,500,1e3,2e3]}})},getFilters:function(){var myQueryString=this.getSetting("myQuery");return myQueryString&&myQueryString.length>0?Rally.data.wsapi.Filter.fromQueryString(myQueryString):[]},createStore:function(model){var thisApp=this,store=Ext.create("Rally.data.wsapi.Store",{model:model,pageSize:2e3});return store.load({callback:function(records,operation,success){console.log("store loaded",records,operation,success),this.down("#totalRecords").update({totalRecords:operation.resultSet.totalRecords})},scope:thisApp}),store},getSettingsFields:function(){return[{xtype:"textareafield",name:"myQuery",width:500,fieldLabel:"Query",labelAlign:"right",validateOnChange:!1,validateOnBlur:!1,validator:function(value){try{console.log("value",value),value&&value.length&&Rally.data.wsapi.Filter.fromQueryString(value)}catch(e){return Rally.ui.notify.Notifier.showError({message:e.message}),e.message}return!0}}]}});
+
+            Rally.launchApp('CustomApp', {
+                name:"dh-workshop-store-app",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        .big-text{font-size:48px;font-weight:bolder}
+    </style>
+</head>
+<body>
+</body>
+</html>

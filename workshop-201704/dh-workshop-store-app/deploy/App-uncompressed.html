@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>dh-workshop-store-app</title>
+
+    <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define('CustomApp', {
+    extend: 'Rally.app.App',
+    componentCls: 'app',
+
+    config: {
+        defaultSettings: {
+            myQuery: '(State.Name != "DoneWithFeature")'
+        }
+    },
+
+    launch: function() {
+        //Write app code here
+
+        //API Docs: https://help.rallydev.com/apps/2.1/doc/
+
+        var model = "PortfolioItem/Feature";
+
+        this.add({
+            xtype: 'container',
+            tpl: '<div class="big-text">{totalRecords}</div> Features found',
+            itemId: 'totalRecords',
+            margin: 25
+        });
+
+       // var store = this.createStore(model);
+
+        this.add({
+            xtype: 'rallygrid',
+            //store: store,
+            storeConfig: {
+                model: model,
+                fetch: ['FormattedID', 'Name', 'Release', 'ReleaseDate', 'Owner', 'UserName','UserStories:summary[ScheduleState]'],
+                filters: this.getFilters(),
+                //context: {
+                //    project: null
+                //},
+                pageSize: 2000,
+                listeners: {
+                    load: function(thisStore){
+                        this.down('#totalRecords').update({totalRecords: thisStore.totalCount});
+                    },
+                    scope: this
+                }
+            },
+            columnCfgs: [
+                'FormattedID',
+                'Name',
+                {
+                    dataIndex: 'Release',
+                    text: 'Release Date',
+                    renderer: function(value){
+
+                        if (value && value.ReleaseDate){
+                            var date = Rally.util.DateTime.fromIsoString(value.ReleaseDate);
+                            return Ext.String.format("<b>{0}</b> ({1})", value.Name, Rally.util.DateTime.format(date, 'Y-m-d'));
+                        }
+                        return '-- No Release Date --';
+                    }
+                },{
+                    dataIndex: 'UserStories',
+                    text: 'Schedule State Breakdown',
+                    renderer: function(v,m,r){
+                        var summary = r.get('Summary');
+                        console.log('Summary', summary);
+                        if (summary.UserStories && summary.UserStories.ScheduleState){
+                            return Ext.String.format("Accepted: {0}<br/>Completed: {1}<br/>In-Progress: {2}<br/>Defined: {3}",
+                                summary.UserStories.ScheduleState["Accepted"] || 0,
+                                summary.UserStories.ScheduleState["Completed"] || 0,
+                                summary.UserStories.ScheduleState["In-Progress"] || 0,
+                                summary.UserStories.ScheduleState["Defined"] || 0
+                            );
+                        }
+                        return v;
+                    }
+                },
+                'PercentDoneByStoryCount'
+            ],
+            pagingToolbarCfg: {
+                pageSizes: [100, 500, 1000, 2000]
+            }
+        });
+    },
+    getFilters: function(){
+
+        ////From a query string
+        var myQueryString = this.getSetting('myQuery');
+        if (myQueryString && myQueryString.length > 0){
+            return Rally.data.wsapi.Filter.fromQueryString(myQueryString);
+        }
+        return [];
+    },
+    createStore: function(model){
+        var thisApp = this;
+
+        var store = Ext.create('Rally.data.wsapi.Store',{
+            model: model,
+            pageSize: 2000
+        });
+
+        store.load({
+            callback: function(records, operation, success){
+                console.log('store loaded', records, operation, success);
+
+                this.down('#totalRecords').update({totalRecords: operation.resultSet.totalRecords});
+            },
+            scope: thisApp
+        });
+
+        return store;
+    },
+    getSettingsFields: function() {
+        return [{
+            xtype: 'textareafield',
+            name: 'myQuery',
+            width: 500,
+            fieldLabel: 'Query',
+            labelAlign: 'right',
+            validateOnChange: false,
+            validateOnBlur: false,
+            validator: function(value){
+                try {
+                    console.log('value', value);
+                    if (value && value.length){
+                        Rally.data.wsapi.Filter.fromQueryString(value);
+                    }
+                } catch (e){
+                    Rally.ui.notify.Notifier.showError({message: e.message});
+                    return e.message;
+                }
+                return true;
+            }
+        }];
+    }
+
+});
+
+
+            Rally.launchApp('CustomApp', {
+                name:"dh-workshop-store-app",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+
+    <style type="text/css">
+        .app {
+  /* Add app styles here */
+}
+.big-text {
+  font-size: 48px;
+  font-weight: bolder;
+}
+
+    </style>
+</head>
+<body>
+</body>
+</html>

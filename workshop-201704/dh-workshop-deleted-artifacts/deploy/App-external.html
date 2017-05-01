@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>deleted-artifacts</title>
+
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define("LookbackCalculator",{singleton:!0,findDeletedItems:function(historicalSnapshots,currentRecords){var currentObjectIDs=Ext.Array.map(currentRecords,function(r){return r.get("ObjectID")}),historicalObjectIDs=Ext.Array.map(historicalSnapshots,function(h){return h.get("ObjectID")}),suspectItems=Ext.Array.difference(historicalObjectIDs,currentObjectIDs);console.log("suspect Items",historicalObjectIDs,currentObjectIDs,suspectItems);var relevantHistoricalObjects=Ext.Array.filter(historicalSnapshots,function(h){return Ext.Array.contains(suspectItems,h.get("ObjectID"))}),hash={};return Ext.Array.each(relevantHistoricalObjects,function(i){hash[i.get("ObjectID")]||(hash[i.get("ObjectID")]=i.getData())}),Ext.Object.getValues(hash)}});
+                Ext.define("CustomApp",{extend:"Rally.app.App",componentCls:"app",config:{defaultSettings:{model:"Defect",defaultDaysAgo:7}},launch:function(){var datePicker=this.add({xtype:"rallydatefield",fieldLabel:"Deleted Since",labelAlign:"right",value:this.getDefaultDate()});datePicker.on("select",this.updateWindow,this),this.updateWindow(datePicker,datePicker.getValue())},getDefaultDate:function(){var daysAgo=this.getSetting("defaultDaysAgo")||7;return Rally.util.DateTime.add(new Date,"day",-daysAgo)},getModel:function(){return this.getSetting("model")},updateWindow:function(datePicker,dateValue){console.log("updateWindow",datePicker,dateValue);var promises=[this.fetchHistoricalObjectIDs(dateValue),this.fetchCurrentObjectIDs(dateValue)];this.setLoading("Loading historical and current data to compare..."),Deft.Promise.all(promises).then({success:this.processData,failure:this.showErrorNotification,scope:this}).always(function(){this.setLoading(!1)},this)},processData:function(results){var historicalSnapshots=results[0],currentRecords=results[1],deDupedRelevantObjects=LookbackCalculator.findDeletedItems(historicalSnapshots,currentRecords);this.buildCustomGrid(deDupedRelevantObjects)},buildCustomGrid:function(suspectItems){var fields=["ObjectID"];suspectItems.length>0&&(fields=Ext.Object.getKeys(suspectItems[0]));var store=Ext.create("Rally.data.custom.Store",{data:suspectItems,fields:fields,pageSize:suspectItems.length});this.down("rallygrid")&&this.down("rallygrid").destroy(),console.log("fields",fields),this.add({xtype:"rallygrid",store:store,showPagingToolbar:!1,margin:10,showRowActionsColumn:!1,columnCfgs:[{dataIndex:"FormattedID",text:"ID"},{dataIndex:"Name",text:"Name",flex:2},{dataIndex:"Project",text:"Project",flex:1,renderer:function(v){return v&&v.Name}},{dataIndex:"_ValidTo",text:"Valid To",renderer:function(v){var dt=Rally.util.DateTime.fromIsoString(v);return Rally.util.DateTime.format(dt,"Y-m-d")}}],viewConfig:{emptyText:"No suspected deleted items found"}})},showErrorNotification:function(msg){Rally.ui.notify.Notifier.showError({message:msg})},getCurrentProjectObjectID:function(){return this.getContext().getProject().ObjectID},fetchHistoricalObjectIDs:function(dateInHistory){var deferred=Ext.create("Deft.Deferred");return Ext.create("Rally.data.lookback.SnapshotStore",{fetch:["FormattedID","Name","_User","_ValidTo","Project"],findConfig:{_TypeHierarchy:this.getModel(),_ValidTo:{$lt:Rally.util.DateTime.toIsoString(new Date),$gte:Rally.util.DateTime.toIsoString(dateInHistory)},_ProjectHierarchy:this.getCurrentProjectObjectID()},sort:{_ValidTo:-1},limit:"Infinity",removeUnauthorizedSnapshots:!0,hydrate:["Project"]}).load({callback:function(snapshots,operation,success){if(console.log("fetchHistoricalDataObjectIDs",snapshots,operation,success),operation.wasSuccessful())deferred.resolve(snapshots);else{var errorMsg="Failed to load Lookback snapshots: "+operation.error&&operation.error.errors.join("<br/>");deferred.reject(errorMsg)}}}),deferred.promise},fetchCurrentObjectIDs:function(dateInHistory){var deferred=Ext.create("Deft.Deferred"),filters=[{property:"LastUpdateDate",operator:">=",value:Rally.util.DateTime.toIsoString(dateInHistory)},{property:"CreationDate",operator:">=",value:Rally.util.DateTime.toIsoString(dateInHistory)}];return filters=Rally.data.wsapi.Filter.or(filters),Ext.create("Rally.data.wsapi.Store",{fetch:["ObjectID"],filters:filters,limit:"Infinity",model:this.getModel()}).load({callback:function(records,operation,success){if(console.log("fetchCurrentData",records,operation,success),operation.wasSuccessful())deferred.resolve(records);else{var errorMsg="Failed to load WSAPI records: "+operation.error&&operation.error.errors.join("<br/>");deferred.reject(errorMsg)}}}),deferred.promise}});
+
+            Rally.launchApp('CustomApp', {
+                name:"deleted-artifacts",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        
+    </style>
+</head>
+<body>
+</body>
+</html>
