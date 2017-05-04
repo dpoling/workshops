@@ -5,9 +5,9 @@ Ext.define('CustomApp', {
     config: {
         defaultSettings: {
             myQuery: '',
-            notStartedStates: ["", "DiscoverFeature"],
-            inProgressStates: ["DevelopFeature","MeasureFeature"],
-            doneStates: ["DoneWithFeature"],
+            notStartedStates: ["", "Definition and Design" , "Definition", "Feature Walkthrough", "Prioritization"],
+            inProgressStates: ["Development", "Testing"],
+            doneStates: ["Done", "Acceptance", "Pilot", "Gereral Availability - Beta", "General Availability", "Archive"],
             model: 'PortfolioItem/Feature'
         }
     },
@@ -24,7 +24,7 @@ Ext.define('CustomApp', {
         //Write app code here
         var model = this.getSetting('model');
 
-        var store = this.createStore(model);
+        this.createStore(model);
 
         this.buildGridboard(model);
 
@@ -70,7 +70,6 @@ Ext.define('CustomApp', {
             },
             scope: this
         });
-
     },
     updateFilters: function(filters){
         //We are going to use this function to update the gridboard filters
@@ -78,7 +77,6 @@ Ext.define('CustomApp', {
         this.buildGridboard(model, filters);
     },
     getNotStartedStates: function(){
-        console.log('getNotStartedStates', this.getSetting('notStartedStates'));
         return this.getSetting('notStartedStates');
     },
     getInProgressStates: function(){
@@ -88,9 +86,6 @@ Ext.define('CustomApp', {
         return this.getSetting('doneStates');
     },
     addChart: function(records){
-
-        console.log('--- addChart records', records);
-
 
         var stateHash = {},
             dataHash = {};
@@ -164,11 +159,11 @@ Ext.define('CustomApp', {
                                 click: function (event) {
                                     var pointName = event && event.currentTarget && event.currentTarget.name || null;
                                     if (pointName){
-                                        console.log('pointName', pointName);
+//                                        console.log('pointName', pointName);
 
                                         var getStates = Ext.bind(thisApp.getStatesForPointName, thisApp);
                                         var states = getStates(pointName);
-                                        console.log('states', states);
+//                                        console.log('states', states);
 
                                         if (states && states.length > 0){
                                             var filters = Ext.Array.map(states, function(s){
@@ -225,7 +220,7 @@ Ext.define('CustomApp', {
         return [];
     },
     getTitle: function(records){
-        return '<div class="big-text">' + records.length + '</div> Features';
+        return '<div class="big-text">' + records.length + '</div><b>Features</b>';
     },
     addGrid: function(){
 
@@ -239,12 +234,12 @@ Ext.define('CustomApp', {
                 fetch: ['FormattedID', 'Name', 'Release', 'ReleaseDate', 'Owner', 'UserName','UserStories:summary[ScheduleState]'],
                 filters: this.getFilters(),
                 pageSize: 2000,
-                listeners: {
-                    load: function(thisStore){
-                        //this.down('#totalRecords').update({totalRecords: thisStore.totalCount});
-                    },
-                    scope: this
-                }
+//                listeners: {
+//                    load: function(thisStore){
+//                        //this.down('#totalRecords').update({totalRecords: thisStore.totalCount});
+//                    },
+//                    scope: this
+//                }
             },
             columnCfgs: [
                 'FormattedID',
@@ -252,7 +247,7 @@ Ext.define('CustomApp', {
                 {
                     dataIndex: 'Release',
                     text: 'Release Date',
-                    renderer: function(value, m, record){
+                    renderer: function(value){
 
                         if (value && value.ReleaseDate){
                             var date = Rally.util.DateTime.fromIsoString(value.ReleaseDate);
@@ -265,7 +260,7 @@ Ext.define('CustomApp', {
                     text: 'Schedule State Breakdown',
                     renderer: function(v,m,r){
                         var summary = r.get('Summary');
-                        console.log('Summary', summary);
+//                        console.log('Summary', summary);
                         if (summary.UserStories && summary.UserStories.ScheduleState){
                             return Ext.String.format("Accepted: {0}<br/>Completed: {1}<br/>In-Progress: {2}<br/>Defined: {3}",
                                 summary.UserStories.ScheduleState["Accepted"] || 0,
@@ -284,10 +279,7 @@ Ext.define('CustomApp', {
     },
     getFilters: function(chartFilters){
 
-        if (chartFilters){
-            console.log('getFilters', chartFilters.toString());
-        }
-        ////From a query string
+        //From a query string
         var myQueryString = this.getSetting('myQuery'),
             queryFilters = null;
 
@@ -295,6 +287,13 @@ Ext.define('CustomApp', {
             queryFilters = Rally.data.wsapi.Filter.fromQueryString(myQueryString);
         }
 
+//        if (chartFilters){
+//            console.log('chartFilters', chartFilters.toString());
+//        }
+//        if (queryFilters){
+//            console.log('queryFilters', queryFilters.toString());
+//        }
+//
 
         if (chartFilters && queryFilters){
             return chartFilters.and(queryFilters);
@@ -320,7 +319,7 @@ Ext.define('CustomApp', {
         });
 
         store.load({
-            callback: function(records, operation, success){
+            callback: function (records) {
                  this.addChart(records);
             },
             scope: thisApp
@@ -331,7 +330,7 @@ Ext.define('CustomApp', {
     getSettingsFields: function() {
         return [{
             xtype: 'textareafield',
-            name: 'myQuery',
+            name: 'myQuery',rab
             width: 500,
             fieldLabel: 'Query',
             labelAlign: 'right',
@@ -339,12 +338,13 @@ Ext.define('CustomApp', {
             validateOnBlur: false,
             validator: function(value){
                 try {
-                    console.log('value', value);
+//                    console.log('value', value);
                     if (value && value.length){
                         Rally.data.wsapi.Filter.fromQueryString(value);
                     }
                 } catch (e){
                     Rally.ui.notify.Notifier.showError({message: e.message});
+                    console.log ("message", e.message);
                     return e.message;
                 }
                 return true;
